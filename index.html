@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自动排座位系统</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        h1, h2 {
+            color: #333;
+            text-align: center;
+        }
+
+        .input-section, .control-section, .result-section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .student-row {
+            display: flex;
+            margin-bottom: 10px;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .student-row input, .student-row select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .remove-btn {
+            background-color: #f44336;
+        }
+
+        .remove-btn:hover {
+            background-color: #d32f2f;
+        }
+
+        .export-btn {
+            background-color: #2196F3;
+        }
+
+        .export-btn:hover {
+            background-color: #0b7dda;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 8px 15px;
+            background-color: #673AB7;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 5px;
+        }
+
+        .file-label:hover {
+            background-color: #5e35b1;
+        }
+
+        .classroom-controls {
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .classroom-controls label {
+            margin-right: 10px;
+        }
+        
+        .classroom-controls input {
+            width: 60px;
+            padding: 5px;
+            margin-right: 15px;
+        }
+
+        /* 新的座位表样式 */
+        .seating-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+
+        .podium {
+            width: 200px;
+            height: 50px;
+            border: 2px solid #333;
+            margin: 0 auto 30px auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            background-color: #f0f0f0;
+        }
+
+        .seating-grid {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 30px;
+        }
+
+        .group {
+            margin: 0 10px;
+        }
+
+        .group-title {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .desk-row {
+            display: flex;
+            margin-bottom: 15px;
+        }
+
+        .seat {
+            width: 80px;
+            height: 40px;
+            border: 1px solid #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 14px;
+        }
+
+        .row-label {
+            display: flex;
+            align-items: center;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+
+        .controls-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>自动排座位系统</h1>
+        
+        <!-- 班级设置 -->
+        <div class="input-section">
+            <h2>班级设置</h2>
+            <div class="classroom-controls">
+                <label for="groups-input">分组数量:</label>
+                <input type="number" id="groups-input" min="1" max="10" value="4">
+                
+                <label for="rows-input">每组行数:</label>
+                <input type="number" id="rows-input" min="1" max="10" value="7">
+                
+                <label for="cols-input">每行座位数:</label>
+                <input type="number" id="cols-input" min="1" max="4" value="2">
+            </div>
+        </div>
+        
+        <!-- 学生输入区域 -->
+        <div class="input-section">
+            <h2>添加学生</h2>
+            <div class="controls-container">
+                <label class="file-label" for="file-input">
+                    上传Word/Excel文件
+                    <input type="file" id="file-input" class="file-input" accept=".txt,.csv,.xlsx,.docx">
+                </label>
+                <button id="batch-add">批量添加</button>
+                <button id="add-student">+ 添加学生</button>
+            </div>
+            <div id="student-inputs">
+                <div class="student-row">
+                    <input type="text" placeholder="姓名" class="name-input">
+                    <select class="gender-select">
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                    <button class="remove-btn">删除</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 控制区域 -->
+        <div class="control-section">
+            <div class="controls-container">
+                <button id="generate-btn">生成座位表</button>
+                <button id="reset-btn">重置</button>
+                <button id="export-btn" class="export-btn">导出座位表</button>
+            </div>
+        </div>
+        
+        <!-- 座位展示区域 -->
+        <div class="result-section">
+            <h2>座位表</h2>
+            <div class="seating-container">
+                <div id="seating-chart"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const studentInputs = document.getElementById('student-inputs');
+            const addStudentBtn = document.getElementById('add-student');
+            const batchAddBtn = document.getElementById('batch-add');
+            const generateBtn = document.getElementById('generate-btn');
+            const resetBtn = document.getElementById('reset-btn');
+            const exportBtn = document.getElementById('export-btn');
+            const fileInput = document.getElementById('file-input');
+            const seatingChart = document.getElementById('seating-chart');
+            const groupsInput = document.getElementById('groups-input');
+            const rowsInput = document.getElementById('rows-input');
+            const colsInput = document.getElementById('cols-input');
+            
+            // 添加学生行
+            addStudentBtn.addEventListener('click', () => {
+                addStudentRow();
+            });
+            
+            // 批量添加学生
+            batchAddBtn.addEventListener('click', () => {
+                const names = prompt('请输入学生名单，每行一个，格式：姓名,性别\n例如：\n张三,男\n李四,女');
+                if (!names) return;
+                
+                const lines = names.split('\n');
+                lines.forEach(line => {
+                    if (line.trim()) {
+                        const [name, gender] = line.split(',').map(item => item.trim());
+                        if (name) {
+                            addStudentRow(name, gender === '女' ? '女' : '男');
+                        }
+                    }
+                });
+            });
+            
+            // 文件上传处理
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                
+                if (file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+                    reader.onload = (e) => {
+                        const content = e.target.result;
+                        const lines = content.split(/\r?\n/);
+                        
+                        // 清空现有学生
+                        studentInputs.innerHTML = '';
+                        
+                        lines.forEach(line => {
+                            if (line.trim()) {
+                                const [name, gender] = line.split(',').map(item => item.trim());
+                                if (name) {
+                                    addStudentRow(name, gender === '女' ? '女' : '男');
+                                }
+                            }
+                        });
+                    };
+                    reader.readAsText(file);
+                } else if (file.name.endsWith('.xlsx')) {
+                    reader.onload = (e) => {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, {type: 'array'});
+                        
+                        // 获取第一个工作表
+                        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                        
+                        // 转换为JSON
+                        const jsonData = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                        
+                        // 清空现有学生
+                        studentInputs.innerHTML = '';
+                        
+                        // 假设第一列是姓名，第二列是性别
+                        jsonData.forEach(row => {
+                            if (row.length > 0 && row[0]) {
+                                const name = row[0];
+                                const gender = row.length > 1 && (row[1] === '女' || row[1] === 'female' || row[1] === 'F') ? '女' : '男';
+                                addStudentRow(name, gender);
+                            }
+                        });
+                    };
+                    reader.readAsArrayBuffer(file);
+                } else {
+                    alert('不支持的文件格式，请上传TXT、CSV或XLSX文件');
+                }
+            });
+            
+            // 添加学生行函数
+            function addStudentRow(name = '', gender = '男') {
+                const newRow = document.createElement('div');
+                newRow.className = 'student-row';
+                newRow.innerHTML = `
+                    <input type="text" placeholder="姓名" class="name-input" value="${name}">
+                    <select class="gender-select">
+                        <option value="男" ${gender === '男' ? 'selected' : ''}>男</option>
+                        <option value="女" ${gender === '女' ? 'selected' : ''}>女</option>
+                    </select>
+                    <button class="remove-btn">删除</button>
+                `;
+                studentInputs.appendChild(newRow);
+                
+                // 添加删除功能
+                newRow.querySelector('.remove-btn').addEventListener('click', () => {
+                    if (document.querySelectorAll('.student-row').length > 1) {
+                        newRow.remove();
+                    } else {
+                        alert('至少保留一名学生');
+                    }
+                });
+            }
+            
+            // 生成座位表
+            generateBtn.addEventListener('click', () => {
+                const students = [];
+                const rows = document.querySelectorAll('.student-row');
+                
+                // 收集学生数据
+                rows.forEach(row => {
+                    const nameInput = row.querySelector('.name-input');
+                    const genderSelect = row.querySelector('.gender-select');
+                    
+                    if (nameInput.value.trim()) {
+                        students.push({
+                            name: nameInput.value.trim(),
+                            gender: genderSelect.value
+                        });
+                    }
+                });
+                
+                if (students.length === 0) {
+                    alert('请至少输入一名学生');
+                    return;
+                }
+                
+                // 随机打乱学生顺序 (Fisher-Yates 洗牌算法)
+                for (let i = students.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [students[i], students[j]] = [students[j], students[i]];
+                }
+                
+                // 获取分组和行列设置
+                const groupCount = parseInt(groupsInput.value) || 4;
+                const rowCount = parseInt(rowsInput.value) || 7;
+                const colCount = parseInt(colsInput.value) || 2;
+                
+                // 生成座位表
+                renderSeatingChart(students, groupCount, rowCount, colCount);
+            });
+            
+            // 重置功能
+            resetBtn.addEventListener('click', () => {
+                studentInputs.innerHTML = '';
+                addStudentRow();
+                seatingChart.innerHTML = '';
+                fileInput.value = '';
+            });
+            
+            // 导出座位表
+            exportBtn.addEventListener('click', () => {
+                if (seatingChart.innerHTML === '') {
+                    alert('请先生成座位表');
+                    return;
+                }
+                
+                html2canvas(document.querySelector('.seating-container')).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = '座位表.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                });
+            });
+            
+            // 渲染座位表 (新样式)
+            function renderSeatingChart(students, groupCount, rowCount, colCount) {
+                seatingChart.innerHTML = '';
+                
+                // 创建讲台
+                const podium = document.createElement('div');
+                podium.className = 'podium';
+                podium.textContent = '讲台';
+                seatingChart.appendChild(podium);
+                
+                // 创建座位网格
+                const seatingGrid = document.createElement('div');
+                seatingGrid.className = 'seating-grid';
+                
+                // 计算每组学生数
+                const totalStudents = students.length;
+                const studentsPerGroup = Math.ceil(totalStudents / groupCount);
+                
+                // 创建分组
+                let studentIndex = 0;
+                
+                for (let g = 0; g < groupCount; g++) {
+                    const group = document.createElement('div');
+                    group.className = 'group';
+                    
+                    // 组标题
+                    const groupTitle = document.createElement('div');
+                    groupTitle.className = 'group-title';
+                    groupTitle.textContent = `第${g + 1}组`;
+                    group.appendChild(groupTitle);
+                    
+                    // 创建行
+                    for (let r = 0; r < rowCount; r++) {
+                        const deskRow = document.createElement('div');
+                        deskRow.className = 'desk-row';
+                        
+                        // 创建座位
+                        for (let c = 0; c < colCount; c++) {
+                            if (studentIndex < totalStudents) {
+                                const seat = document.createElement('div');
+                                seat.className = 'seat';
+                                seat.textContent = students[studentIndex].name;
+                                deskRow.appendChild(seat);
+                                studentIndex++;
+                            } else {
+                                // 如果学生不够，创建空座位
+                                const seat = document.createElement('div');
+                                seat.className = 'seat';
+                                seat.textContent = '';
+                                deskRow.appendChild(seat);
+                            }
+                        }
+                        
+                        // 添加行标签
+                        const rowLabel = document.createElement('div');
+                        rowLabel.className = 'row-label';
+                        rowLabel.textContent = `第${r + 1}排`;
+                        deskRow.appendChild(rowLabel);
+                        
+                        group.appendChild(deskRow);
+                    }
+                    
+                    seatingGrid.appendChild(group);
+                }
+                
+                seatingChart.appendChild(seatingGrid);
+            }
+            
+            // 初始化
+            addStudentRow();
+        });
+    </script>
+</body>
+</html>
